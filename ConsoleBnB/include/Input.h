@@ -1,31 +1,50 @@
 #pragma once
 
+#include <vector>
+
+// =================================================================
+// 1. 실시간 키보드 입력 상태 장부 (데이터 구조체)
+// =================================================================
+// 지금 이 순간, 플레이어가 어떤 키보드 버튼을 누르고 있는지 
+// true(누름)와 false(안 누름)로 기록해 두는 실시간 영수증 같은 장부야.
 struct InputState
 {
-    bool quit = false;
+    bool quit = false;      // 게임을 즉시 종료할지 여부 (ESC 키를 누르면 true가 됨)
 
-    bool p1Up = false;
-    bool p1Down = false;
-    bool p1Left = false;
-    bool p1Right = false;
-    bool p1Bomb = false;
-    bool p1Needle = false;
+    // --- 1P 플레이어 (W, S, A, D 조작계) 입력 상태 ---
+    bool p1Up = false;      // 1P가 위로 이동 중인가? (W 키)
+    bool p1Down = false;    // 1P가 아래로 이동 중인가? (S 키)
+    bool p1Left = false;    // 1P가 왼쪽으로 이동 중인가? (A 키)
+    bool p1Right = false;   // 1P가 오른쪽으로 이동 중인가? (D 키)
+    bool p1Bomb = false;    // 1P가 물풍선을 설치했는가? (Shift 또는 Ctrl 키)
+    bool p1Needle = false;  // 1P가 탈출용 바늘을 사용했는가? (N 키)
 
-    bool p2Up = false;
-    bool p2Down = false;
-    bool p2Left = false;
-    bool p2Right = false;
-    bool p2Bomb = false;
-    bool p2Needle = false;
+    // --- 2P 플레이어 (방향키 조작계) 입력 상태 ---
+    bool p2Up = false;      // 2P가 위로 이동 중인가? (↑ 방향키)
+    bool p2Down = false;    // 2P가 아래로 이동 중인가? (↓ 방향키)
+    bool p2Left = false;    // 2P가 왼쪽으로 이동 중인가? (← 방향키)
+    bool p2Right = false;   // 2P가 오른쪽으로 이동 중인가? (→ 방향키)
+    bool p2Bomb = false;    // 2P가 물풍선을 설치했는가? (Space 바)
+    bool p2Needle = false;  // 2P가 탈출용 바늘을 사용했는가? (N 키)
 };
 
+// =================================================================
+// 2. 키보드 신호 수집 및 연사 방지 처리기 (클래스)
+// =================================================================
+// 실제 컴퓨터 키보드에서 들어오는 전기 신호를 실시간으로 감지해서,
+// 위의 InputState(장부)를 예쁘게 가공하고 작성해 주는 하드웨어 칩셋 같은 클래스야.
 class Input
 {
 public:
+    // [핵심 함수] 매 프레임마다(0.05초마다) 키보드 전체를 샅샅이 검사(Polling)해서
+    // "지금 이 순간 눌려있는 최신 키보드 장부"를 작성해 Game 코어에 리턴해 주는 함수야.
     InputState poll();
 
 private:
-    bool prevSpace_ = false;
-    bool prevEnter_ = false;
-    bool prevNeedle_ = false;
+    // --- 연사 버그 및 중복 입력 방지용 센서 (이전 프레임 기억 장치) ---
+    // 키보드를 꾹 누르고 있을 때, 0.05초마다 물풍선이 3~4개씩 마구 깔리는 버그를 막기 위해
+    // "바로 직전 프레임에 이 키를 이미 누르고 있었는지" 기억해 두는 블랙박스 변수들이야.
+    bool prevSpace_ = false;   // 바로 직전 프레임에 스페이스 바(2P 폭탄)를 누르고 있었는가?
+    bool prevEnter_ = false;   // 바로 직전 프레임에 엔터 키를 누르고 있었는가?
+    bool prevNeedle_ = false;  // 바로 직전 프레임에 N 키(바늘 사용)를 누르고 있었는가?
 };
