@@ -1,47 +1,66 @@
 #include "../include/Map.h"
 
+// =================================================================
+// 1. 생성자 및 맵 데이터 자동 생성 알고리즘
+// =================================================================
+
+// [생성자] 맵 매니저가 메모리에 만들어질 때 자동으로 reset()을 호출해 판을 깔아줘.
 GameMap::GameMap()
 {
     reset();
 }
 
+// 17x13 바둑판을 처음부터 끝까지 돌며 벽, 상자, 아이템 지도를 정밀하게 조각하는 함수야.
 void GameMap::reset()
 {
-    for (int y = 0; y < MAP_H; ++y)
+    for (int y = 0; y < MAP_H; ++y) // 세로줄 루프 (0번부터 12번 줄까지)
     {
-        for (int x = 0; x < MAP_W; ++x)
+        for (int x = 0; x < MAP_W; ++x) // 가로줄 루프 (0번부터 16번 줄까지)
         {
+            // [기본 세팅] 일단 바닥에 떨어진 아이템은 아무것도 없는 상태(None)로 정산해 놔.
             items_[y][x] = ItemType::None;
 
+            // 규칙 1: 가장자리 외곽 벽 생성 (테두리 밖으로 캐릭터가 나가지 못하게 차단)
             if (x == 0 || y == 0 || x == MAP_W - 1 || y == MAP_H - 1)
             {
                 tiles_[y][x] = Tile::Wall;
             }
+            // 규칙 2: 인게임 내부 격자 벽 생성 (가로·세로가 모두 짝수인 칸에 파괴 안 되는 기둥 설치)
             else if (x % 2 == 0 && y % 2 == 0)
             {
                 tiles_[y][x] = Tile::Wall;
             }
+            // 규칙 3: 나머지 빈 공간은 수학 공식을 돌려 빈 길과 상자(Block)를 무작위 배치해.
             else
             {
+                // 특수한 해시 수식을 써서 5로 나누어떨어지면 빈 길(Empty), 아니면 부서지는 상자(Block)를 채워.
                 tiles_[y][x] = ((x * 13 + y * 7 + x * y) % 5 == 0) ? Tile::Empty : Tile::Block;
             }
         }
     }
 
-    clearStartArea({ 1, 1 });
-    clearStartArea({ MAP_W - 2, MAP_H - 2 });
+    // 규칙 4: 플레이어 리스폰 지역 안전지대 확보 (1P 시작점 주변과 2P 시작점 주변을 청소)
+    clearStartArea({ 1, 1 });                      // 맨 왼쪽 위 1P 주변 청소
+    clearStartArea({ MAP_W - 2, MAP_H - 2 });     // 맨 오른쪽 아래 2P 주변 청소
 }
 
+// =================================================================
+// 2. 맵 정보 조회 및 실시간 데이터 수정 함수 (Getter / Setter)
+// =================================================================
+
+// 지정한 좌표(p)의 타일이 뭔지 안전하게 읽어오는 함수야. (맵 바깥 영역을 찌르면 '벽'이라고 구라쳐서 보호해)
 Tile GameMap::tileAt(Vec2 p) const
 {
     return inBounds(p) ? tiles_[p.y][p.x] : Tile::Wall;
 }
 
+// 지정한 좌표(p)의 바닥에 어떤 아이템이 놓여있는지 안전하게 읽어오는 함수야.
 ItemType GameMap::itemAt(Vec2 p) const
 {
     return inBounds(p) ? items_[p.y][p.x] : ItemType::None;
 }
 
+// 특정 좌표(p)의 타일 상태를 강제로 변경하는 함수야. (상자가 부서졌을 때 빈 길로 바꿀 수 있게 해 줘)
 void GameMap::setTile(Vec2 p, Tile tile)
 {
     if (inBounds(p))
@@ -50,6 +69,7 @@ void GameMap::setTile(Vec2 p, Tile tile)
     }
 }
 
+// 특정 좌표(p)의 바닥에 아이템 보물을 내려놓거나 치워버리는 함수야.
 void GameMap::setItem(Vec2 p, ItemType item)
 {
     if (inBounds(p))
@@ -58,57 +78,85 @@ void GameMap::setItem(Vec2 p, ItemType item)
     }
 }
 
+// =================================================================
+// 3. 충돌 검사 및 맵 경계선 예외 제어 안전장치
+// =================================================================
+
+// 입력받은 좌표(p)가 가로 17칸, 세로 13칸 모눈종이 "안쪽 범위"가 맞는지 검사하는 센서야.
 bool GameMap::inBounds(Vec2 p) const
 {
     return p.x >= 0 && p.x < MAP_W && p.y >= 0 && p.y < MAP_H;
 }
 
+// 캐릭터가 이 좌표(p)로 걸어서 통과할 수 있는지 최종 판정해 주는 길잡이 함수야.
+// (맵 안쪽 영역이어야 하고, 바닥이 완전히 뚫린 텅 빈 길(Empty)일 때만 true를 뱉어)
 bool GameMap::isWalkable(Vec2 p) const
 {
     return inBounds(p) && tileAt(p) == Tile::Empty;
 }
 
+// =================================================================
+// 4. 핵심 액션 시스템: 상자 파괴 및 아이템 생성 확률 알고리즘
+// =================================================================
+
+// 물줄기가 상자 타일(p)을 때렸을 때 작동하는 함수야. 메르센 트위스터 난수기(rng)를 받아와 주사위를 굴려.
 bool GameMap::breakBlock(Vec2 p, std::mt19937& rng)
 {
+    // 안전장치: 맵 밖이거나, 이미 상자가 아닌 곳을 때렸다면 즉시 무시하고 탈출(false)해.
     if (!inBounds(p) || tileAt(p) != Tile::Block)
     {
         return false;
     }
 
+    // [상자 파괴] 상자가 있던 자리를 통과 가능한 빈 길(Empty)로 바꿔버려.
     setTile(p, Tile::Empty);
 
+    // [아이템 드롭 주사위 1탄] 1부터 100 사이의 숫자를 완벽하게 공평하게 하나 뽑아.
     std::uniform_int_distribution<int> dropRoll(1, 100);
-    if (dropRoll(rng) <= 30)
+
+    if (dropRoll(rng) <= 30) // 정확히 30% 확률 당첨! (뽑은 숫자가 30 이하일 때만 발동)
     {
+        // [아이템 결정 주사위 2탄] 당첨됐으니 0, 1, 2, 3 중 숫자를 하나 골고루 뽑아서 4대 아이템을 스폰해.
         std::uniform_int_distribution<int> itemRoll(0, 3);
         const int item = itemRoll(rng);
+
+        // 삼항 연산자를 이용해 주사위 번호에 맞춰서 보물을 바닥에 정산해 둔단다.
         setItem(p,
-            item == 0 ? ItemType::Speed :
-            item == 1 ? ItemType::Range :
-            item == 2 ? ItemType::BombCount :
-            ItemType::Needle);
+            item == 0 ? ItemType::Speed :      // 0번 나오면 번개 신발
+            item == 1 ? ItemType::Range :      // 1번 나오면 물약
+            item == 2 ? ItemType::BombCount :  // 2번 나오면 파란 별
+            ItemType::Needle);                 // 3번 나오면 노란 바늘
     }
 
-    return true;
+    return true; // 상자가 정상적으로 박살 났다고 보고하며 끝내.
 }
 
+// =================================================================
+// 5. 억까 방지 예외 처리 시스템: 스폰 지역 청소 알고리즘
+// =================================================================
+
+// 플레이어가 게임 시작하자마자 사방이 상자로 꽉 막혀 굶어 죽거나 갇히는 버그를 차단하는 특수 청소 함수야.
 void GameMap::clearStartArea(Vec2 start)
 {
+    // 내 리스폰 시작점 좌표를 기준으로 동, 서, 남, 북으로 최대 2칸씩 뻗어 나가는 '안전 구역 타일 좌표 목록' 장부야.
+    // 삼항 연산자를 써서 1P(좌상단)면 오른쪽/아래쪽으로 칸을 늘리고, 2P(우하단)면 왼쪽/위쪽으로 알아서 칸을 계산해 줘.
     const Vec2 safeCells[] = {
-        start,
-        { start.x + (start.x == 1 ? 1 : -1), start.y },
-        { start.x + (start.x == 1 ? 2 : -2), start.y },
-        { start.x, start.y + (start.y == 1 ? 1 : -1) },
-        { start.x, start.y + (start.y == 1 ? 2 : -2) },
-        { start.x + (start.x == 1 ? 1 : -1), start.y + (start.y == 1 ? 1 : -1) }
+        start,                                                         // 현재 시작 위치 그 자리
+        { start.x + (start.x == 1 ? 1 : -1), start.y },                // 가로로 1칸 옆 자리
+        { start.x + (start.x == 1 ? 2 : -2), start.y },                // 가로로 2칸 옆 자리
+        { start.x, start.y + (start.y == 1 ? 1 : -1) },                // 세로로 1칸 밑/위 자리
+        { start.x, start.y + (start.y == 1 ? 2 : -2) },                // 세로로 2칸 밑/위 자리
+        { start.x + (start.x == 1 ? 1 : -1), start.y + (start.y == 1 ? 1 : -1) } // 사선 대각선 1칸 자리
     };
 
+    // 위의 안전 구역 장부에 적힌 6개의 좌표를 하나씩 꺼내서 싹 청소해 버려.
     for (Vec2 p : safeCells)
     {
+        // 안전장치: 단단한 외곽 벽(Wall)은 절대 부수면 안 되니까, 벽이 아닐 때만 청소부 빗자루를 들이대.
         if (inBounds(p) && tileAt(p) != Tile::Wall)
         {
-            setTile(p, Tile::Empty);
-            setItem(p, ItemType::None);
+            setTile(p, Tile::Empty);     // 무조건 빈 길로 만들어 놔!
+            setItem(p, ItemType::None);   // 바닥에 처음부터 아이템이 스폰되어 있는 치트 행위도 차단해!
         }
     }
 }
