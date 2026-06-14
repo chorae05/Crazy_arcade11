@@ -2,85 +2,109 @@
 
 #include <vector>
 
-constexpr int MAP_W = 17;
-constexpr int MAP_H = 13;
-constexpr int CELL_W = 3;
-constexpr int FPS = 20;
-constexpr int BOMB_FRAMES = 60;
-constexpr int FLAME_FRAMES = 8;
-constexpr int SPEED_FRAMES = 100;
-constexpr int TRAP_FRAMES = 100;
+// =================================================================
+// 1. 게임의 절대적인 규칙과 물리 법칙 (전역 상숫값)
+// =================================================================
+constexpr int MAP_W = 17;         // 게임 화면의 가로 크기 (17칸짜리 모눈종이)
+constexpr int MAP_H = 13;         // 게임 화면의 세로 크기 (13칸짜리 모눈종이)
+constexpr int CELL_W = 3;         // (내부 연산용) 한 칸의 기준 단위 너비
+constexpr int FPS = 20;            // 초당 프레임 수 (1초에 로직과 화면을 20번 계산함)
 
+// 아래 프레임 상숫값들은 [ 원하는 시간(초) * FPS(20) ] 공식으로 계산된 틱(Tick) 수야.
+constexpr int BOMB_FRAMES = 60;   // 물풍선이 바닥에 놓이고 터질 때까지 걸리는 시간 (60프레임 = 정확히 3초)
+constexpr int FLAME_FRAMES = 8;   // 물풍선이 터진 후 물줄기가 화면에 머무르는 시간 (8프레임 = 약 0.4초)
+constexpr int SPEED_FRAMES = 100; // 스피드업 아이템을 먹었을 때 신발이 유지되는 시간 (100프레임 = 정확히 5초)
+constexpr int TRAP_FRAMES = 100;  // 물풍선에 갇혀서 뽀글거리는 패널티 시간 (100프레임 = 정확히 5초, 이동안 탈출 못 하면 사망)
+
+// =================================================================
+// 2. 위치 좌표 및 게임 상태를 정의하는 이름표 (구조체 & 열거형)
+// =================================================================
+
+// 2차원 모눈종이 바둑판 위의 '가로, 세로 주소'를 나타내는 핀이야.
 struct Vec2
 {
-    int x = 0;
-    int y = 0;
+    int x = 0;   // 가로 위치 (왼쪽에서 몇 번째 칸인가?)
+    int y = 0;   // 세로 위치 (위에서 몇 번째 칸인가?)
 
+    // 컴퓨터한테 "두 칸의 주소가 완전히 똑같은 자리인지 검사해라"라고 규칙을 정해준 비교 연산자야.
+    // 플레이어가 물줄기나 아이템이랑 겹쳤는지 확인할 때 내부적으로 쓰여.
     bool operator==(const Vec2& other) const
     {
         return x == other.x && y == other.y;
     }
 };
 
+// 바닥 타일의 종류를 나타내는 이름표야.
 enum class Tile
 {
-    Empty,
-    Wall,
-    Block
+    Empty,  // 텅 빈 바닥 (캐릭터가 지나다닐 수 있는 길)
+    Wall,   // 단단한 벽 (물풍선이 터져도 안 부서지고, 캐릭터도 통과 못 함)
+    Block   // 상자 (캐릭터는 못 지나가지만, 물풍선이 터지면 부서지면서 아이템이 나옴)
 };
 
+// 상자를 부수면 무작위로 바닥에 떨어지는 4가지 보물 상자 종류야.
 enum class ItemType
 {
-    None,
-    Speed,
-    Range,
-    BombCount,
-    Needle
+    None,       // 아이템 없음
+    Speed,      // 초록 번개: 캐릭터 이동 속도가 빨라지는 신발
+    Range,      // 분홍 플러스: 물풍선 폭발 사거리가 늘어나는 물약
+    BombCount,  // 파란 별: 한 번에 최대로 놓을 수 있는 물풍선 수량이 증가하는 약
+    Needle      // 노란 바늘: 물풍선에 갇혔을 때 즉시 터뜨리고 생존하는 탈출 주사기
 };
 
+// 현재 게임판 전체의 승패 여부를 감시하는 심판의 기록장이야.
 enum class GameResult
 {
-    Running,
-    P1Win,
-    P2Win,
-    Draw,
-    Quit
+    Running,    // 게임이 아직 치열하게 진행 중인 상태
+    P1Win,      // 1P 플레이어가 승리한 상태 (2P가 사망함)
+    P2Win,      // 2P 플레이어가 승리한 상태 (1P가 사망함)
+    Draw,       // 무승부 (동시에 같이 폭사하여 둘 다 사망한 상태)
+    Quit        // 플레이어가 도중에 ESC를 눌러 강제 강종을 요청한 상태
 };
 
+// 첫 메인 화면 메뉴판에서 마우스/키보드로 선택 중인 항목을 기억하는 센서야.
 enum class MenuChoice
 {
-    Start,
-    Help,
-    Exit
+    Start,  // 게임 시작
+    Help,   // 게임 방법 및 조작법 보기
+    Exit    // 게임 종료하고 나가기
 };
 
+// =================================================================
+// 3. 게임 월드에서 실제 살아 움직이는 핵심 객체 (데이터 구조체)
+// =================================================================
+
+// 플레이어 캐릭터의 모든 인적 사항과 실시간 능력치를 들고 있는 성적표야.
 struct Player
 {
-    int id = 0;
-    char symbol = 'P';
-    Vec2 pos;
-    bool alive = true;
-    int range = 2;
-    int maxBombs = 1;
-    int activeBombs = 0;
-    int moveCooldown = 0;
-    int speedFrames = 0;
-    int needles = 0;
-    bool trapped = false;
-    int trappedFrames = 0;
+    int id = 0;              // 플레이어 식별 번호 (1이면 1P, 2면 2P)
+    char symbol = 'P';       // 디버그 텍스트 모드용 기호 (P 또는 Q)
+    Vec2 pos;                // 플레이어의 현재 실시간 바둑판 주소 좌표 (Vec2 구조체)
+    bool alive = true;       // 생존 여부 플래그 (true면 살아있음, false면 게임오버)
+    int range = 2;           // 물풍선 폭발 사거리 능력치 (기본 2칸, 아이템 먹으면 증가)
+    int maxBombs = 1;        // 내가 최대로 맵에 깔 수 있는 물풍선 총수량 한도
+    int activeBombs = 0;     // 내가 지금 바닥에 깔아둔 물풍선 실시간 개수 (maxBombs를 넘지 못하게 체크하는 용도)
+    int moveCooldown = 0;    // 이동 쿨타임 카운터 (연속으로 순간이동하듯 미끄러지지 않게 꾹 눌러도 한 칸씩 끊어 걷게 제어)
+    int speedFrames = 0;     // 번개 신발 약효가 남아있는 남은 시간 카운터 (0이 되면 일반 속도로 원상복구)
+    int needles = 0;         // 내가 지금 주머니에 들고 있는 탈출용 바늘 개수 (최대 3개 제한)
+    bool trapped = false;    // 물풍선에 갇혀서 물방울에 동동 떠 있는 상태인지 여부 (true면 조작 불능)
+    int trappedFrames = 0;   // 물풍선에 갇힌 남은 시간 카운터 (바늘 안 쓰고 이게 0이 되면 익사하여 alive = false가 됨)
 };
 
+// 바닥에 놓여서 째깍거리고 있는 시한폭탄 물풍선 객체야.
 struct Bomb
 {
-    Vec2 pos;
-    int ownerId = 0;
-    int timer = BOMB_FRAMES;
-    int range = 2;
-    bool exploded = false;
+    Vec2 pos;                // 물풍선이 설치된 바둑판 주소 좌표
+    int ownerId = 0;         // 이 물풍선을 누가 깔았는지 주인 식별 (1이면 1P, 2면 2P가 깔았음)
+    int timer = BOMB_FRAMES; // 터지기 전까지 남은 타이머 (60에서 시작해서 매 프레임 1씩 깎여 0이 되면 펑!)
+    int range = 2;           // 터질 때 뻗어나갈 물줄기의 길이 (주인의 폭탄 설치 당시 사거리 스탯을 박제해 둠)
+    bool exploded = false;   // 이미 터졌는지 여부 (연쇄 폭발이나 타이머 종료로 한 번 터진 폭탄이 중복 정산되는 걸 차단)
 };
 
+// 물풍선이 터지는 순간 사방으로 번져나가는 물줄기(Flame) 장부야.
 struct Flame
 {
-    std::vector<Vec2> cells;
-    int timer = FLAME_FRAMES;
+    std::vector<Vec2> cells; // 이 물줄기가 현재 차지하고 있는 모든 바둑판 타일 좌표들의 배열 목록이야.
+    // (여기에 플레이어 좌표가 포함되는지 검사해서 닿으면 가둬버리는 충돌 판정의 명부가 돼!)
+    int timer = FLAME_FRAMES;// 화면에 번쩍하고 나타났다가 사라질 때까지 남은 불꽃 수명 타이머 (8에서 시작해 0이 되면 소멸)
 };
