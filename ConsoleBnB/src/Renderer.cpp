@@ -285,13 +285,7 @@ LRESULT CALLBACK GameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             g_renderer->hasClick_ = true;
             g_renderer->click_ = POINT{ GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
             return 0;
-        case WM_KEYDOWN:
-            if (wParam == VK_F10)
-            {
-                g_renderer->toggleFullscreen();
-                return 0;
-            }
-            break;
+        
         case WM_CLOSE:
             g_renderer->closed_ = true;
             DestroyWindow(hwnd);
@@ -451,7 +445,6 @@ void Renderer::drawMainMenu(MenuChoice selected)
 
     centered(dc, 595, L"클릭 또는 방향키와 엔터", 24, Ink, true);
     centered(dc, 630, L"1P 이동: WASD (폭탄: Shift/Ctrl)  |  2P 이동: 방향키 (폭탄: Space)", 20, Ink, true);
-    centered(dc, 660, L"F10: 전체화면  |  ESC: 게임 종료", 20, Ink, true);
 
     endPaintFrame(windowDc, memoryDc, bitmap, oldBitmap);
 }
@@ -473,9 +466,9 @@ void Renderer::drawHelp()
     text(dc, 112, 220, L"갇히면 바늘로 탈출하세요.", 21, Ink);
 
     text(dc, 112, 280, L"2. 조작법", 24, WallBlue, true);
-    text(dc, 112, 318, L"1P 이동: W A S D        폭탄: Shift 또는 Ctrl", 21, Ink);
-    text(dc, 112, 350, L"2P 이동: 방향키          폭탄: Space", 21, Ink);
-    text(dc, 112, 382, L"N: 바늘 사용     F10: 전체화면     ESC: 종료", 21, Ink);
+    text(dc, 112, 318, L"1P 이동: W A S D       폭탄: Shift 또는 Ctrl", 21, Ink);
+    text(dc, 112, 350, L"2P 이동: 방향키         폭탄: Space", 21, Ink);
+    text(dc, 112, 382, L"N: 바늘 사용             ESC: 종료", 21, Ink);
 
     text(dc, 112, 438, L"3. 아이템", 24, Pink, true);
     text(dc, 112, 476, L"파란별: 폭탄 개수 증가     분홍 플러스: 사거리 증가", 21, Ink);
