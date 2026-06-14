@@ -49,14 +49,11 @@ private:
     HWND hwnd_ = nullptr;                          // 생성된 윈도우 창의 고유 주소 아이디 (주민등록번호 같은 핸들 변수)
     int width_ = 1000;                             // 게임 화면의 가로 해상도 크기 (1000 픽셀)
     int height_ = 800;                             // 게임 화면의 세로 해상도 크기 (800 픽셀)
-    bool fullscreen_ = false;                      // 현재 F10을 눌러 전체 화면 상태가 되었는지 체크하는 변수
-    DWORD windowStyle_ = 0;                        // 테두리 있는 창 모드인지, 테두리 없는 전체화면인지 창 스타일을 저장하는 메모리
-    WINDOWPLACEMENT windowPlacement_{ sizeof(WINDOWPLACEMENT) }; // 전체화면에서 다시 창 모드로 돌아올 때 원래 크기를 기억해 두는 기억 장치
     bool closed_ = false;                          // 현재 창이 닫혔는지 닫히지 않았는지 기록하는 플래그 변수
     bool hasClick_ = false;                        // 마우스 클릭 이벤트가 방금 발생했는지 감지하는 센서 변수
     POINT click_{};                                // 마우스가 클릭된 실제 화면 픽셀 위치(x, y)를 저장해 두는 주소록
 
-    // [윈도우 메시지 수신기 안테나] 마우스 클릭, F10 입력 등 Windows OS의 신호를 Renderer 내부 변수들과 동기화해 주는 프렌드 함수
+    // [윈도우 메시지 수신기 안테나] 마우스 클릭 등 Windows OS의 신호를 Renderer 내부 변수들과 동기화해 주는 프렌드 함수
     friend LRESULT CALLBACK GameWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
     // --- 더블 버퍼링 (화면 깜빡임 완벽 차단 기술) 내부 가동 함수 ---
@@ -64,7 +61,7 @@ private:
     HDC beginPaintFrame(HDC& windowDc, HDC& memoryDc, HBITMAP& bitmap, HBITMAP& oldBitmap); // 가짜 도화지를 가동하고 붓을 쥐어주는 함수
     void endPaintFrame(HDC windowDc, HDC memoryDc, HBITMAP bitmap, HBITMAP oldBitmap);       // 그림이 완성되면 모니터에 고속 복사(BitBlt)하고 정산하는 함수
 
-    void toggleFullscreen();                       // F10 버튼을 눌렀을 때 전체화면과 창 화면 모드를 부드럽게 스위칭해 주는 함수
+    
     void fillRect(HDC dc, int x, int y, int w, int h, COLORREF color); // 지정한 색상 물감으로 사각형을 꽉 채워 그려주는 함수
     void roundRect(HDC dc, int x, int y, int w, int h, int radius, COLORREF fill, COLORREF border); // 테두리가 둥근 세련된 UI 버튼 박스를 그리는 함수
 

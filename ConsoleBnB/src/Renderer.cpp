@@ -338,7 +338,6 @@ void Renderer::setupConsole()
 
     ShowWindow(hwnd_, SW_SHOW);
     UpdateWindow(hwnd_);
-    windowStyle_ = static_cast<DWORD>(GetWindowLongPtrW(hwnd_, GWL_STYLE));
 }
 
 void Renderer::hideCursor()
@@ -634,37 +633,6 @@ void Renderer::endPaintFrame(HDC windowDc, HDC memoryDc, HBITMAP bitmap, HBITMAP
     ReleaseDC(hwnd_, windowDc);
 }
 
-void Renderer::toggleFullscreen()
-{
-    if (hwnd_ == nullptr) return;
-
-    if (!fullscreen_)
-    {
-        windowStyle_ = static_cast<DWORD>(GetWindowLongPtrW(hwnd_, GWL_STYLE));
-        GetWindowPlacement(hwnd_, &windowPlacement_);
-
-        HMONITOR monitor = MonitorFromWindow(hwnd_, MONITOR_DEFAULTTONEAREST);
-        MONITORINFO monitorInfo{ sizeof(MONITORINFO) };
-        GetMonitorInfoW(monitor, &monitorInfo);
-
-        SetWindowLongPtrW(hwnd_, GWL_STYLE, windowStyle_ & ~WS_OVERLAPPEDWINDOW);
-        SetWindowPos(hwnd_, HWND_TOP,
-            monitorInfo.rcMonitor.left,
-            monitorInfo.rcMonitor.top,
-            monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
-            monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
-            SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        fullscreen_ = true;
-    }
-    else
-    {
-        SetWindowLongPtrW(hwnd_, GWL_STYLE, windowStyle_);
-        SetWindowPlacement(hwnd_, &windowPlacement_);
-        SetWindowPos(hwnd_, nullptr, 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        fullscreen_ = false;
-    }
-}
 
 void Renderer::fillRect(HDC dc, int x, int y, int w, int h, COLORREF color)
 {
