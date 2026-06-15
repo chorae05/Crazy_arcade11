@@ -960,20 +960,43 @@ void Renderer::drawFlame(HDC dc, int x, int y, int size)
 // [주인공 캐릭터 렌더 대장 함수] 플레이어 엔티티의 ID 번호와 물풍선 피격 유무 플래그를 실시간 역추적해 기가 막히게 분기 조립하는 총감독 함수야.
 void Renderer::drawPlayer(HDC dc, int x, int y, int size, const Player& player, COLORREF color)
 {
-    // 중요 예외 제어 1: 만약 플레이어가 물풍선 불꽃에 맞아 물방울 갇힘 스태이트(`trapped == true`)가 되었다면?
     if (player.trapped)
     {
-        drawBomb(dc, x, y, size); // 캐릭터 머리통 위에 거대한 물풍선 구체를 강제로 오버랩 중첩 렌더링해 가두어버려!
-    }
+        // 갇혔을 때 - 작게 찌부된 캐릭터
+        if (player.id == 1)
+        {
+            drawUncleFace(dc, x + 2, y + 1, size - -5);  
+        }
+        else
+        {
+            drawSimpleFace(dc, x + 5, y + 7, size - 12, color);
+        }
 
-    // 중요 예외 제어 2: 1P와 2P 구분을 위해 플레이어 ID 고유 넘버를 스캔해 서로 다른 이목구비 펑션을 가동해!
-    if (player.id == 1)
-    {
-        drawUncleFace(dc, x + 2, y + 1, size - 4); // 1P는 배오개 레트로 감성 도트 아저씨 얼굴 도장 쾅!
+        // 동그란 물방울 테두리
+        HPEN pen = CreatePen(PS_SOLID, 3, Outline);
+        HBRUSH transBrush = (HBRUSH)GetStockObject(NULL_BRUSH);
+        HGDIOBJ oldPen = SelectObject(dc, pen);
+        HGDIOBJ oldBrush = SelectObject(dc, transBrush);
+        Ellipse(dc, x + 2, y + 2, x + size - 2, y + size - 2);
+        SelectObject(dc, oldPen);
+        SelectObject(dc, oldBrush);
+        DeleteObject(pen);
+
+        // 하이라이트
+        fillRect(dc, x + 8, y + 6, 8, 4, WaterLight);
+        fillRect(dc, x + 6, y + 8, 4, 3, WaterLight);
     }
     else
     {
-        drawSimpleFace(dc, x + 1, y + 1, size - 2, color); // 2P는 전달받은 고유 컬러(레드) 프레임의 심플 눈코입 얼굴 도장 쾅!
+        // 일반 상태 - 원래 크기로 그리기
+        if (player.id == 1)
+        {
+            drawUncleFace(dc, x + 2, y + 1, size - 4);
+        }
+        else
+        {
+            drawSimpleFace(dc, x + 1, y + 1, size - 2, color);
+        }
     }
 }
 
