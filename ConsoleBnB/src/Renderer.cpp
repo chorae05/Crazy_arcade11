@@ -554,7 +554,7 @@ void Renderer::drawCountdown(int count)
 }
 
 // =================================================================
-// 4. [★인게임 핵심 마스터 렌더러 구현부] (가장 최중요함)
+// 4. [인게임 핵심 마스터 렌더러 구현부] (가장 최중요함)
 // =================================================================
 // 20FPS 루프가 돌 때마다 실시간 맵 구조체 배열, 1P/2P 실시간 좌표와 현재 깔린 폭탄/불꽃의 가변 vector 리스트를
 // 아틀라스 핀셋 스캔 방식으로 한꺼번에 전달받아 도화지에 레이어 순서대로 중첩 드로잉하는 심장 마스터 함수야!
@@ -572,11 +572,11 @@ void Renderer::draw(
     HBITMAP bitmap = nullptr, oldBitmap = nullptr;
     HDC dc = beginPaintFrame(windowDc, memoryDc, bitmap, oldBitmap); // 백버퍼 메모리 오프닝!
 
-    // 레이어 ①: 제일 밑바닥 로비 전체 월페이퍼 도배
+    // 레이어 1: 제일 밑바닥 로비 전체 월페이퍼 도배
     fillRect(dc, 0, 0, width_, height_, SoftBlue);
     drawGrass(dc, 0, 0, width_, height_);
 
-    // 레이어 ②: 상단 UI 스탯 대시보드 스케치 (1P와 2P의 현재 아이템 보유 스탯 실시간 성적표 수치 갱신)
+    // 레이어 2: 상단 UI 스탯 대시보드 스케치 (1P와 2P의 현재 아이템 보유 스탯 실시간 성적표 수치 갱신)
     roundRect(dc, 118, 34, 764, 94, 8, Panel, Outline);
     fillRect(dc, 145, 58, 56, 48, WallBlue);
     drawUncleFace(dc, 153, 62, 40); // 1P 프로필 사진 박기
@@ -598,12 +598,12 @@ void Renderer::draw(
         L"  사거리 " + std::to_wstring(p2.range) +
         L"  바늘 " + std::to_wstring(p2.needles), 18, Ink, true);
 
-    // 레이어 ③: 실제 전투가 펼쳐지는 중앙 전투판 격자 테두리 프레임 생성
+    // 레이어 3: 실제 전투가 펼쳐지는 중앙 전투판 격자 테두리 프레임 생성
     roundRect(dc, BoardX - 18, BoardY - 18, BoardW + 36, BoardH + 36, 8, Cream, Outline);
     fillRect(dc, BoardX - 8, BoardY - 8, BoardW + 16, BoardH + 16, Outline);
     fillRect(dc, BoardX, BoardY, BoardW, BoardH, MintA); // 내부 바둑판 기본 판때기 거치
 
-    // [★이중 루프 전수조사 스캐너 레이어] 17x13 모눈종이 좌표계를 돌며 타일 정보를 받아 한 땀 한 땀 조각해!
+    // [이중 루프 전수조사 스캐너 레이어] 17x13 모눈종이 좌표계를 돌며 타일 정보를 받아 한 땀 한 땀 조각해!
     for (int y = 0; y < MAP_H; ++y)
     {
         for (int x = 0; x < MAP_W; ++x)
@@ -628,7 +628,7 @@ void Renderer::draw(
                 {
                 case Tile::Wall:  drawWall(dc, sx, sy, Cell);  break; // 안 부서지는 콘크리트 벽 기둥 박기
                 case Tile::Block: drawCrate(dc, sx, sy, Cell); break; // 부서지는 나무 상자 박기
-                case Tile::Empty: // 빈길인 경우에는 혹시 상자가 부서져 바닥에 아이템 보물이 스폰되어 있는지 교차 확인 후 드로잉해!
+                case Tile::Empty: //빈길인 경우에는 혹시 상자가 부서져 바닥에 아이템 보물이 스폰되어 있는지 교차 확인 후 드로잉해!
                     drawItem(dc, sx, sy, Cell, map.itemAt(pos));
                     break;
                 }
@@ -642,11 +642,11 @@ void Renderer::draw(
         }
     }
 
-    // 레이어 ④: 정적 타일과 이펙트 렌더링이 싹 끝난 최종 상단 위치에 '살아있는 주인공 캐릭터'들의 좌표를 산출해 얹어 덮어써!
+    // 레이어 4 : 정적 타일과 이펙트 렌더링이 싹 끝난 최종 상단 위치에 '살아있는 주인공 캐릭터'들의 좌표를 산출해 얹어 덮어써!
     if (p1.alive) drawPlayer(dc, BoardX + p1.pos.x * Cell, BoardY + p1.pos.y * Cell, Cell, p1, RGB(79, 173, 232));
     if (p2.alive) drawPlayer(dc, BoardX + p2.pos.x * Cell, BoardY + p2.pos.y * Cell, Cell, p2, Red);
 
-    // 레이어 ⑤: 화면 맨 아래쪽 실시간 캐릭터 스태이트 상황판(생존/갇힘/탈락 상태 칠판) 출력 UI 드로잉
+    // 레이어 5 : 화면 맨 아래쪽 실시간 캐릭터 스태이트 상황판(생존/갇힘/탈락 상태 칠판) 출력 UI 드로잉
     const int uiY = BoardY + BoardH + 42;
     roundRect(dc, 174, uiY, 652, 54, 8, Panel, Outline);
     // 삼항 연산자를 중첩해 생존 시에는 trapped 여부를 검사해 "갇힘" 또는 "생존" 상태 문구를 실시간 가변 텍스트로 전환 연산해 줘.
@@ -688,7 +688,7 @@ void Renderer::drawResultScreen(GameResult result)
 }
 
 // =================================================================
-// 5. 더블 버퍼링 (Double Buffering) 그래픽 보호 엔진 하위 코어 시스템 ⭐⭐⭐
+// 5. 더블 버퍼링 (Double Buffering) 그래픽 보호 엔진 하위 코어 시스템
 // =================================================================
 // 화면을 다 그리기 전까지 유저의 눈을 가려두고 가짜 도화지(메모리 캔버스)를 비밀리에 신설해 주는 핵심 오프스크린 기술 엔진이야.
 HDC Renderer::beginPaintFrame(HDC& windowDc, HDC& memoryDc, HBITMAP& bitmap, HBITMAP& oldBitmap)
@@ -731,9 +731,9 @@ void Renderer::endPaintFrame(HDC windowDc, HDC memoryDc, HBITMAP bitmap, HBITMAP
     ReleaseDC(hwnd_, windowDc); // 운영체제에 그래픽 제어권을 반납하며 한 프레임 작화 정산 완료!
 }
 
-// =================================================================
-// 6. GDI 기반 원초적 저수준 도형 렌더링 헬퍼 함수군
-// =================================================================
+// ======================================================
+// 6. GDI 기반 원초적 저수준 도형 렌더링 헬퍼 함수군           
+// ======================================================
 
 void Renderer::fillRect(HDC dc, int x, int y, int w, int h, COLORREF color)
 {
@@ -960,13 +960,13 @@ void Renderer::drawFlame(HDC dc, int x, int y, int size)
 // [주인공 캐릭터 렌더 대장 함수] 플레이어 엔티티의 ID 번호와 물풍선 피격 유무 플래그를 실시간 역추적해 기가 막히게 분기 조립하는 총감독 함수야.
 void Renderer::drawPlayer(HDC dc, int x, int y, int size, const Player& player, COLORREF color)
 {
-    // 중요 예외 제어 ①: 만약 플레이어가 물풍선 불꽃에 맞아 물방울 갇힘 스태이트(`trapped == true`)가 되었다면?
+    // 중요 예외 제어 1: 만약 플레이어가 물풍선 불꽃에 맞아 물방울 갇힘 스태이트(`trapped == true`)가 되었다면?
     if (player.trapped)
     {
         drawBomb(dc, x, y, size); // 캐릭터 머리통 위에 거대한 물풍선 구체를 강제로 오버랩 중첩 렌더링해 가두어버려!
     }
 
-    // 중요 예외 제어 ②: 1P와 2P 구분을 위해 플레이어 ID 고유 넘버를 스캔해 서로 다른 이목구비 펑션을 가동해!
+    // 중요 예외 제어 2: 1P와 2P 구분을 위해 플레이어 ID 고유 넘버를 스캔해 서로 다른 이목구비 펑션을 가동해!
     if (player.id == 1)
     {
         drawUncleFace(dc, x + 2, y + 1, size - 4); // 1P는 배오개 레트로 감성 도트 아저씨 얼굴 도장 쾅!
